@@ -131,7 +131,9 @@ with tab_batch:
 
         if run_sample:
             available_cols = [c for c in _HOSPITAL_INPUT_COLS if c in features_df.columns]
-            sample_df = features_df[available_cols].sample(n=min(n_sample, len(features_df)), random_state=None)
+            excess_cols = [c for c in available_cols if c.endswith("_excess_ratio")]
+            valid_df = features_df[features_df[excess_cols].notna().any(axis=1)]
+            sample_df = valid_df[available_cols].sample(n=min(n_sample, len(valid_df)), random_state=None)
 
             st.write(f"**Sample data** ({len(sample_df)} hospitals):")
             st.dataframe(sample_df.head(10), use_container_width=True)
