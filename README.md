@@ -3,7 +3,7 @@
 A production-grade ML engineering project that predicts 30-day hospital readmission risk using public CMS data. The Centers for Medicare & Medicaid Services financially penalizes hospitals whose readmission rates exceed national risk-adjusted expectations — this system scores each hospital's likelihood of incurring those penalties so administrators can act before the measurement period closes.
 
 **Live demo:**
-- 🚀 **API docs:** `https://YOUR-APP.up.railway.app/docs`
+- 🚀 **API docs:** `https://ml-readmission-production.up.railway.app/docs`
 - 📊 **Dashboard:** `https://YOUR_USERNAME-ml-readmission-dashboard-app-XXXXX.streamlit.app`
 
 ---
@@ -212,11 +212,11 @@ curl -X POST http://localhost:8000/predict/batch \
 ### Health check
 
 ```bash
-curl http://localhost:8000/health
+curl https://ml-readmission-production.up.railway.app/health
 ```
 
 ```json
-{"status": "ok", "model_loaded": true, "model_version": "4"}
+{"status": "ok", "model_loaded": true, "model_version": "local"}
 ```
 
 ---
