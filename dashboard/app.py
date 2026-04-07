@@ -20,13 +20,13 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from dashboard.api_client import (
+from api_client import (
     get_health,
     get_history,
     get_model_info,
     predict_batch,
 )
-from dashboard.components import (
+from components import (
     batch_results_table,
     batch_summary_metrics,
     feature_importance_chart,
