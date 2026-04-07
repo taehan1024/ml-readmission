@@ -81,7 +81,7 @@ CI/CD
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ml-readmission.git
+git clone https://github.com/taehan1024/ml-readmission.git
 cd ml-readmission
 
 conda create -n ml-readmission python=3.11 -y
