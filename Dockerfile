@@ -36,7 +36,7 @@ COPY app/ ./app/
 
 # models/ is mounted as a volume at runtime (see docker-compose.yml)
 # so we only create the directory as a mount point here
-RUN mkdir -p models data
+RUN mkdir -p models data && chown -R appuser:appuser models data
 
 # Switch to non-root
 USER appuser
