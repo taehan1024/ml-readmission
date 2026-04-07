@@ -88,6 +88,17 @@ tab_batch, tab_info, tab_monitor = st.tabs([
 
 # Path to the processed feature matrix (used for random sampling)
 _FEATURES_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "features.parquet"
+# Bundled fallback CSV for Streamlit Cloud (committed to repo)
+_BUNDLED_CSV = Path(__file__).resolve().parent / "data" / "hospitals.csv"
+
+
+def _load_features() -> pd.DataFrame | None:
+    """Load hospital feature data: parquet if available, else bundled CSV."""
+    if _FEATURES_PATH.exists():
+        return pd.read_parquet(_FEATURES_PATH)
+    if _BUNDLED_CSV.exists():
+        return pd.read_csv(_BUNDLED_CSV)
+    return None
 
 # Columns from features.parquet that map directly to HospitalInput fields
 _HOSPITAL_INPUT_COLS = [
@@ -107,9 +118,10 @@ with tab_batch:
     st.subheader("🎲 Random Sample Prediction")
     st.caption("Pick random hospitals from the local feature dataset and score them instantly.")
 
-    if not _FEATURES_PATH.exists():
+    features_df = _load_features()
+    if features_df is None:
         st.info(
-            "Random sampling requires the local feature dataset. "
+            "Random sampling requires the hospital dataset. "
             "Use the CSV upload below to score your hospitals."
         )
     else:
@@ -118,7 +130,6 @@ with tab_batch:
         run_sample = col_btn.button("▶ Run Random Sample", type="primary", use_container_width=True)
 
         if run_sample:
-            features_df = pd.read_parquet(_FEATURES_PATH)
             available_cols = [c for c in _HOSPITAL_INPUT_COLS if c in features_df.columns]
             sample_df = features_df[available_cols].sample(n=min(n_sample, len(features_df)), random_state=None)
 

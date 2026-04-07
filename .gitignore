@@ -1,6 +1,8 @@
 # Data and model artifacts
 data/
 models/
+# Allow bundled dashboard data (needed for Streamlit Cloud)
+!dashboard/data/
 .mlruns/
 mlruns/
 
