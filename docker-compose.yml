@@ -1,0 +1,65 @@
+services:
+
+  # ── MLflow tracking server ─────────────────────────────────────────────────
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow
+    command: >
+      bash -c "pip install --quiet mlflow==2.13.0 &&
+               mlflow server
+                 --host 0.0.0.0
+                 --port 5000
+                 --backend-store-uri /mlruns
+                 --default-artifact-root /mlruns"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlruns_data:/mlruns
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── FastAPI prediction service ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: readmission-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount trained model artifacts so the container picks them up
+      # without being rebuilt after every training run.
+      - ./models:/app/models:ro
+      # Persist monitoring SQLite DB across container restarts
+      - ./data:/app/data
+    environment:
+      # Point the API at the MLflow container (Docker internal DNS)
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: readmission-model
+      MODEL_STAGE: Production
+      MODEL_LOCAL_PATH: models/model.pkl
+      LOG_PREDICTIONS: "true"
+      MONITORING_DB_PATH: data/predictions.db
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+
+volumes:
+  mlruns_data:
+    driver: local

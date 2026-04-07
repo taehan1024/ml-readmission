@@ -1,0 +1,31 @@
+# Development artefacts
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data (mounted as volumes at runtime, not baked into the image)
+data/
+mlruns/
+.mlruns/
+
+# Source directories not needed in the API image
+pipeline/
+dashboard/
+tests/
+notebooks/
+
+# Docs / config not needed at runtime
+*.md
+.env
+.env.example
+.gitignore
+.dockerignore
+
+# IDE
+.vscode/
+.idea/

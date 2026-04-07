@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# Cancel in-progress runs for the same branch/PR so stale runs don't
+# consume minutes when you push again quickly.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python setup ────────────────────────────────────────────────────────
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # ── Dependencies ────────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Lint (fast, catches obvious errors before running tests) ────────────
+      - name: Lint with ruff
+        run: |
+          pip install ruff
+          ruff check app/ pipeline/ tests/ --select E,F,W --ignore E501
+        continue-on-error: false
+
+      # ── Tests ───────────────────────────────────────────────────────────────
+      - name: Run pytest
+        run: |
+          pytest tests/ \
+            --tb=short \
+            --strict-markers \
+            -q
+        env:
+          # Suppress MLflow telemetry and HTTP calls during tests
+          MLFLOW_TRACKING_URI: "file:///tmp/mlruns"
+          LOG_PREDICTIONS: "false"
+
+      # ── Coverage report (informational, does not fail the build) ────────────
+      - name: Generate coverage report
+        run: |
+          pip install pytest-cov
+          pytest tests/ \
+            --cov=app \
+            --cov=pipeline \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            -q
+        env:
+          MLFLOW_TRACKING_URI: "file:///tmp/mlruns"
+          LOG_PREDICTIONS: "false"
+        continue-on-error: true
+
+      - name: Upload coverage to GitHub summary
+        if: always()
+        run: |
+          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          pip install coverage
+          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+
+  # ── Docker build check ───────────────────────────────────────────────────────
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: runtime
+          push: false
+          tags: readmission-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
