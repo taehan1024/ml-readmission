@@ -100,6 +100,19 @@ def _load_features() -> pd.DataFrame | None:
         return pd.read_csv(_BUNDLED_CSV)
     return None
 
+def _clip_to_schema_bounds(df: pd.DataFrame) -> pd.DataFrame:
+    """Clip numeric columns to the bounds defined in HospitalInput to prevent 422s."""
+    df = df.copy()
+    for col in df.columns:
+        if col.endswith("_excess_ratio"):
+            df[col] = pd.to_numeric(df[col], errors="coerce").clip(lower=0.0, upper=5.0)
+        elif col.endswith("_predicted_rate") or col.endswith("_expected_rate"):
+            df[col] = pd.to_numeric(df[col], errors="coerce").clip(lower=0.0, upper=100.0)
+        elif col.endswith("_discharges"):
+            df[col] = pd.to_numeric(df[col], errors="coerce").clip(lower=0.0)
+    return df
+
+
 # Columns from features.parquet that map directly to HospitalInput fields
 _HOSPITAL_INPUT_COLS = [
     "facility_id", "facility_name", "state",
@@ -134,6 +147,7 @@ with tab_batch:
             excess_cols = [c for c in available_cols if c.endswith("_excess_ratio")]
             valid_df = features_df[features_df[excess_cols].notna().any(axis=1)]
             sample_df = valid_df[available_cols].sample(n=min(n_sample, len(valid_df)), random_state=None)
+            sample_df = _clip_to_schema_bounds(sample_df)
 
             st.write(f"**Sample data** ({len(sample_df)} hospitals):")
             st.dataframe(sample_df.head(10), use_container_width=True)
@@ -188,6 +202,7 @@ with tab_batch:
         st.dataframe(df_in.head(5), use_container_width=True)
 
         if st.button("Run Batch Prediction", type="primary"):
+            df_in = _clip_to_schema_bounds(df_in)
             records = df_in.astype(object).where(pd.notna(df_in), None).to_dict(orient="records")
             if len(records) > 500:
                 st.error("Batch exceeds 500 hospitals. Split your file and re-upload.")
